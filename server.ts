@@ -11,6 +11,38 @@ async function startServer() {
 
   app.use(express.json());
 
+  // Endpoint to send email notifications for session events
+  app.post("/api/notify-session", async (req, res) => {
+    try {
+      const { action, sessionData } = req.body;
+      const adminEmail = process.env.ADMIN_EMAIL;
+      const resendApiKey = process.env.RESEND_API_KEY;
+
+      console.log(`[Notification] Action: ${action}`);
+      console.log(`[Notification] Data:`, sessionData);
+
+      if (!adminEmail || !resendApiKey) {
+        console.log("[Notification] Simulateur: E-mail non envoyé car ADMIN_EMAIL ou RESEND_API_KEY est manquant dans .env");
+        return res.json({ success: true, simulated: true, message: "E-mail simulé (clés manquantes)" });
+      }
+
+      // If we had the resend SDK installed:
+      // const { Resend } = require('resend');
+      // const resend = new Resend(resendApiKey);
+      // await resend.emails.send({
+      //   from: 'MHM E-boutique <onboarding@resend.dev>',
+      //   to: adminEmail,
+      //   subject: action === 'OPEN' ? 'Ouverture de Caisse' : 'Fermeture de Caisse',
+      //   html: `<p>Détails de la session :</p><pre>${JSON.stringify(sessionData, null, 2)}</pre>`
+      // });
+
+      res.json({ success: true, simulated: false });
+    } catch (err) {
+      console.error("[Notification] Erreur:", err);
+      res.status(500).json({ error: "Erreur lors de l'envoi de la notification" });
+    }
+  });
+
   // Endpoint to list available models for a given API key and provider
   app.post("/api/ai/models", async (req, res) => {
     try {
@@ -57,7 +89,7 @@ async function startServer() {
       const { prompt, context, functionResponses, aiConfig } = req.body;
       
       const systemInstruction = `
-        Tu es un agent IA autonome intégré à un système de gestion de Point de Vente (OmniPOS).
+        Tu es un agent IA autonome intégré à un système de gestion de Point de Vente (MHM E-boutique).
         Tu peux lire les données, suggérer des créations, des mises à jour, et aider l'utilisateur à comprendre et modifier les règles de calcul (ex: seuil de gros, quantité par carton, seuil d'alerte).
         Tu as accès à des outils pour interagir directement avec la base de données de l'application (qui s'exécute côté client).
         

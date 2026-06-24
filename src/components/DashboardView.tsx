@@ -66,13 +66,16 @@ export default function DashboardView() {
     loadData();
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, colorClass }: any) => (
+  const StatCard = ({ title, subtitle, value, icon: Icon, colorClass }: any) => (
     <div className="bg-white p-4 md:p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center">
       <div className={`p-3 md:p-4 rounded-xl mr-3 md:mr-4 ${colorClass}`}>
         <Icon className="w-6 h-6 md:w-8 md:h-8" />
       </div>
       <div>
-        <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">{title}</p>
+        <div className="flex flex-col">
+          <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider">{title}</p>
+          {subtitle && <p className="text-[10px] md:text-xs text-slate-400 mb-1">{subtitle}</p>}
+        </div>
         <p className="text-xl md:text-3xl font-black text-slate-900">{value}</p>
       </div>
     </div>
@@ -82,27 +85,24 @@ export default function DashboardView() {
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto p-4 md:p-8">
       <h2 className="text-2xl md:text-3xl font-black text-slate-900 mb-6 md:mb-8 tracking-tight">Vue d'ensemble - Aujourd'hui</h2>
       
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6 md:mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-6 md:mb-8">
         <StatCard 
           title="Chiffre d'affaires" 
+          subtitle="(Total des ventes)"
           value={formatCurrency(stats.totalRevenue)} 
           icon={TrendingUp} 
           colorClass="bg-indigo-100 text-indigo-600" 
         />
         <StatCard 
-          title="Marge Brute" 
-          value={formatCurrency(stats.grossMargin)} 
-          icon={DollarSign} 
-          colorClass="bg-blue-100 text-blue-600" 
-        />
-        <StatCard 
           title="Total Dépenses" 
+          subtitle="(Frais divers)"
           value={'- ' + formatCurrency(stats.totalExpenses)} 
           icon={AlertTriangle} 
           colorClass="bg-rose-100 text-rose-600" 
         />
         <StatCard 
           title="Bénéfice Net" 
+          subtitle="(Ventes - Achats - Dépenses)"
           value={formatCurrency(stats.totalProfit)} 
           icon={DollarSign} 
           colorClass={stats.totalProfit >= 0 ? "bg-emerald-100 text-emerald-600" : "bg-red-100 text-red-600"} 

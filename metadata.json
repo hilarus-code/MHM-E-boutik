@@ -1,6 +1,6 @@
 {
-  "name": "",
-  "description": "",
+  "name": "MHM E-boutique",
+  "description": "Système de point de vente et gestion d'inventaire avec agent IA.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

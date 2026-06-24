@@ -8,7 +8,7 @@ import Markdown from 'react-markdown';
 export default function AiAgentView() {
   const { products, activeSession, cart, refreshProducts } = useApp();
   const [messages, setMessages] = useState<{ role: 'user' | 'ai', content: string }[]>([
-    { role: 'ai', content: 'Bonjour ! Je suis votre agent IA OmniPOS. Comment puis-je vous aider aujourd\'hui ? Je peux analyser vos ventes, vous aider avec l\'inventaire, ou mettre à jour les règles de calcul.' }
+    { role: 'ai', content: 'Bonjour ! Je suis votre agent IA MHM E-boutique. Comment puis-je vous aider aujourd\'hui ? Je peux analyser vos ventes, vous aider avec l\'inventaire, ou mettre à jour les règles de calcul.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -163,7 +163,7 @@ export default function AiAgentView() {
             <Sparkles className="w-6 h-6 text-indigo-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900">Agent IA OmniPOS</h2>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Agent IA MHM E-boutique</h2>
             <p className="text-sm text-slate-500 font-medium hidden md:block">Assistant Autonome & Analyse</p>
           </div>
         </div>

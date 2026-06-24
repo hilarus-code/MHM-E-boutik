@@ -67,21 +67,20 @@ export default function ReportsView() {
                   </button>
                 </div>
 
-                <div className="p-4 md:p-6 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 border-b border-slate-100">
+                <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 border-b border-slate-100">
                   <div>
-                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Ventes Brutes</p>
+                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-0.5">Chiffre d'affaires</p>
+                    <p className="text-[10px] text-slate-400 mb-1">(Total encaissé)</p>
                     <p className="text-lg md:text-xl font-black text-slate-900">{formatCurrency(totalSales)}</p>
                   </div>
                   <div>
-                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Marge Brute</p>
-                    <p className="text-lg md:text-xl font-black text-indigo-600">{formatCurrency(totalProfit)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Dépenses</p>
+                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-0.5">Dépenses</p>
+                    <p className="text-[10px] text-slate-400 mb-1">(Frais divers)</p>
                     <p className="text-lg md:text-xl font-black text-rose-600">{totalExpenses > 0 ? `-${formatCurrency(totalExpenses)}` : formatCurrency(0)}</p>
                   </div>
                   <div>
-                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Bénéfice Net</p>
+                    <p className="text-xs md:text-sm font-bold text-slate-400 uppercase tracking-wider mb-0.5">Bénéfice Net</p>
+                    <p className="text-[10px] text-slate-400 mb-1">(Ventes - Achats - Dépenses)</p>
                     <p className={`text-lg md:text-xl font-black ${netProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(netProfit)}</p>
                   </div>
                 </div>

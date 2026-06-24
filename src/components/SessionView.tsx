@@ -43,10 +43,26 @@ export default function SessionView() {
   const handleOpen = async () => {
     if (activeSession) return;
     try {
-      await db.openSession(parseFloat(initialCash) || 0);
+      const cash = parseFloat(initialCash) || 0;
+      const session = await db.openSession(cash);
       await refreshSession();
       setInitialCash('');
       setIsOpening(false);
+
+      // Notification
+      fetch('/api/notify-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SESSION_OPEN',
+          sessionData: {
+            id: session.id,
+            startTime: new Date(session.startTime).toLocaleString(),
+            initialCash: cash
+          }
+        })
+      }).catch(err => console.error("Notification erreur", err));
+
     } catch (e) {
       alert("Erreur");
     }
@@ -55,10 +71,30 @@ export default function SessionView() {
   const handleClose = async () => {
     if (!activeSession) return;
     try {
-      await db.closeSession(activeSession.id, parseFloat(finalCash) || 0);
+      const actualCash = parseFloat(finalCash) || 0;
+      const closedSession = await db.closeSession(activeSession.id, actualCash);
       await refreshSession();
       setFinalCash('');
       setIsClosing(false);
+
+      // Notification
+      fetch('/api/notify-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SESSION_CLOSED',
+          sessionData: {
+            id: closedSession.id,
+            startTime: new Date(closedSession.startTime).toLocaleString(),
+            endTime: new Date().toLocaleString(),
+            initialCash: closedSession.initialCash,
+            expectedFinalCash: closedSession.expectedFinalCash,
+            actualFinalCash: closedSession.actualFinalCash,
+            difference: actualCash - (closedSession.expectedFinalCash || 0)
+          }
+        })
+      }).catch(err => console.error("Notification erreur", err));
+
     } catch (e) {
       alert("Erreur");
     }

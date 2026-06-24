@@ -1,4 +1,4 @@
--- Supabase Schema for OmniPOS
+-- Supabase Schema for MHM E-boutique
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

@@ -85,7 +85,7 @@ export default function Layout() {
           <div className="flex items-center justify-center w-16 h-16 bg-slate-900 rounded-xl mb-6 mx-auto">
             <Lock className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-center text-slate-900 mb-2">OmniPOS</h1>
+          <h1 className="text-2xl font-bold text-center text-slate-900 mb-2">MHM E-boutique</h1>
           <p className="text-slate-500 text-center mb-6 font-medium">Connectez-vous pour commencer</p>
           
           <form onSubmit={handleLogin}>
@@ -118,9 +118,9 @@ export default function Layout() {
       <div className="md:hidden bg-white border-b border-slate-200 flex items-center justify-between p-4 z-30">
         <div className="flex items-center">
           <span className="w-8 h-8 bg-slate-900 rounded-lg mr-2 flex items-center justify-center">
-            <span className="text-white font-bold">O</span>
+            <span className="text-white font-bold">M</span>
           </span>
-          <span className="font-bold text-lg">OmniPOS</span>
+          <span className="font-bold text-lg">MHM E-boutique</span>
         </div>
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -139,9 +139,9 @@ export default function Layout() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center">
               <span className="w-8 h-8 bg-slate-900 rounded-lg mr-2 flex items-center justify-center">
-                <span className="text-white text-lg leading-none">O</span>
+                <span className="text-white text-lg leading-none">M</span>
               </span>
-              OmniPOS
+              MHM E-boutique
             </h1>
             <p className="text-xs text-slate-500 mt-1 font-medium tracking-wide uppercase">
               {isAdmin ? 'Administrateur' : 'Vendeur'}
