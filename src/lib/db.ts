@@ -2,7 +2,7 @@ import localforage from 'localforage';
 import { Product, Transaction, Session, Credit } from '../types';
 import { initialProducts } from '../data/initial-products';
 import { supabaseDb } from './supabase-db';
-import { isSupabaseConfigured } from './supabase';
+
 
 // Configure stores
 const productsStore = localforage.createInstance({ name: 'pos', storeName: 'products' });
@@ -182,80 +182,150 @@ const localDb = {
   }
 };
 
-export async function syncLocalToSupabase() {
-  if (!isSupabaseConfigured) {
-    throw new Error("Supabase n'est pas configuré.");
-  }
+const apiDb = {
+  async initProductsIfEmpty() {
+    // Already pre-seeded in cloud Postgres
+  },
 
-  const results = {
+  async getProducts(): Promise<Product[]> {
+    const res = await fetch('/api/db/products');
+    if (!res.ok) throw new Error("Erreur de récupération des produits");
+    return res.json();
+  },
+
+  async getProduct(id: string): Promise<Product | null> {
+    const products = await this.getProducts();
+    return products.find(p => p.id === id) || null;
+  },
+
+  async updateProduct(product: Product): Promise<void> {
+    const res = await fetch('/api/db/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product)
+    });
+    if (!res.ok) throw new Error("Erreur de mise à jour du produit");
+  },
+
+  async updateProductStock(id: string, quantityChange: number): Promise<void> {
+    const p = await this.getProduct(id);
+    if (p) {
+      p.stock += quantityChange;
+      await this.updateProduct(p);
+    }
+  },
+
+  // --- Sessions ---
+  async openSession(initialCash: number): Promise<Session> {
+    const res = await fetch('/api/db/sessions/open', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ initialCash })
+    });
+    if (!res.ok) throw new Error("Erreur d'ouverture de session");
+    return res.json();
+  },
+
+  async getActiveSession(): Promise<Session | null> {
+    const res = await fetch('/api/db/sessions/active');
+    if (!res.ok) throw new Error("Erreur de récupération de la session active");
+    return res.json();
+  },
+
+  async getSessions(): Promise<Session[]> {
+    const res = await fetch('/api/db/sessions');
+    if (!res.ok) throw new Error("Erreur de récupération des sessions");
+    return res.json();
+  },
+
+  async updateSession(session: Session): Promise<void> {
+    const res = await fetch('/api/db/sessions/update', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(session)
+    });
+    if (!res.ok) throw new Error("Erreur de mise à jour de la session");
+  },
+
+  async closeSession(sessionId: string, actualFinalCash: number): Promise<Session> {
+    const res = await fetch('/api/db/sessions/close', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: sessionId, actualFinalCash })
+    });
+    if (!res.ok) throw new Error("Erreur de fermeture de session");
+    return res.json();
+  },
+
+  async addExpenseToActiveSession(description: string, amount: number): Promise<void> {
+    const active = await this.getActiveSession();
+    if (!active) throw new Error("Aucune session active");
+    const res = await fetch('/api/db/sessions/expenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: active.id, description, amount })
+    });
+    if (!res.ok) throw new Error("Erreur d'ajout de la dépense");
+  },
+
+  // --- Transactions ---
+  async saveTransaction(transaction: Transaction): Promise<void> {
+    const res = await fetch('/api/db/transactions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(transaction)
+    });
+    if (!res.ok) throw new Error("Erreur d'enregistrement de la transaction");
+  },
+
+  async getTransactionsForSession(sessionId: string): Promise<Transaction[]> {
+    const txs = await this.getAllTransactions();
+    return txs.filter(t => t.sessionId === sessionId);
+  },
+
+  async getAllTransactions(): Promise<Transaction[]> {
+    const res = await fetch('/api/db/transactions');
+    if (!res.ok) throw new Error("Erreur de récupération des transactions");
+    return res.json();
+  },
+
+  // --- Credits ---
+  async saveCredit(credit: Credit): Promise<void> {
+    const res = await fetch('/api/db/credits', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(credit)
+    });
+    if (!res.ok) throw new Error("Erreur d'enregistrement du crédit");
+  },
+
+  async getCredits(): Promise<Credit[]> {
+    const res = await fetch('/api/db/credits');
+    if (!res.ok) throw new Error("Erreur de récupération des crédits");
+    return res.json();
+  },
+
+  async updateCreditPayment(creditId: string, additionalPayment: number): Promise<void> {
+    const res = await fetch('/api/db/credits/pay', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ creditId, additionalPayment })
+    });
+    if (!res.ok) throw new Error("Erreur de mise à jour du paiement");
+  }
+};
+
+export async function syncLocalToSupabase() {
+  // Now we are fully real-time directly to the central cloud database!
+  // No local sync needed as every transaction is stored instantly.
+  return {
     products: 0,
     sessions: 0,
     transactions: 0,
     credits: 0
   };
-
-  try {
-    // 1. Sync Products
-    const localProducts = await localDb.getProducts();
-    for (const prod of localProducts) {
-      await supabaseDb.updateProduct(prod);
-      results.products++;
-    }
-
-    // 2. Sync Sessions & Session Expenses
-    const localSessions = await localDb.getSessions();
-    for (const sess of localSessions) {
-      // Create/update session in Supabase
-      await supabaseDb.updateSession(sess);
-      
-      // Sync Expenses for this session if any
-      const { supabase } = await import('./supabase');
-      if (supabase && sess.expenses && sess.expenses.length > 0) {
-        for (const exp of sess.expenses) {
-          await supabase.from('expenses').upsert({
-            id: exp.id,
-            session_id: sess.id,
-            description: exp.description,
-            amount: exp.amount,
-            timestamp: new Date(exp.timestamp).toISOString()
-          });
-        }
-      }
-      results.sessions++;
-    }
-
-    // 3. Sync Transactions (checking for duplicates first)
-    const localTransactions = await localDb.getAllTransactions();
-    const { supabase } = await import('./supabase');
-    for (const tx of localTransactions) {
-      if (supabase) {
-        const { data: existing } = await supabase
-          .from('transactions')
-          .select('id')
-          .eq('id', tx.id)
-          .maybeSingle();
-
-        if (!existing) {
-          await supabaseDb.saveTransaction(tx);
-          results.transactions++;
-        }
-      }
-    }
-
-    // 4. Sync Credits
-    const localCredits = await localDb.getCredits();
-    for (const cred of localCredits) {
-      await supabaseDb.saveCredit(cred);
-      results.credits++;
-    }
-
-    return results;
-  } catch (error) {
-    console.error("Erreur de synchronisation locale -> cloud:", error);
-    throw error;
-  }
 }
 
-export const db = isSupabaseConfigured ? supabaseDb : localDb;
-export { isSupabaseConfigured };
+export const db = apiDb;
+export const isSupabaseConfigured = true;
 

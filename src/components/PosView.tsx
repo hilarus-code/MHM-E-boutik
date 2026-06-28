@@ -357,6 +357,9 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
   const [tendered, setTendered] = useState<string>(cartTotal.toString());
   const [isProcessing, setIsProcessing] = useState(false);
   const [autoPrint, setAutoPrint] = useState(true);
+  const [showReceiptSettings, setShowReceiptSettings] = useState(false);
+  const [receiptHeader, setReceiptHeader] = useState(() => localStorage.getItem('receipt_header') || 'MHM E-boutique\nGestion de Ventes & Caisse');
+  const [receiptFooter, setReceiptFooter] = useState(() => localStorage.getItem('receipt_footer') || 'Merci pour votre confiance !\nMHM E-boutique');
 
   const tenderedAmount = parseFloat(tendered) || 0;
   
@@ -545,31 +548,76 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
           )}
 
           {/* Auto-print toggle option */}
-          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between mb-4">
-            <div className="flex items-center">
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg mr-3">
-                <Printer className="w-5 h-5" />
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col gap-3 mb-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg mr-3">
+                  <Printer className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800">Imprimer le ticket</p>
+                  <p className="text-[10px] md:text-xs text-slate-400">Impression automatique après validation</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800">Imprimer le ticket</p>
-                <p className="text-[10px] md:text-xs text-slate-400">Impression automatique après validation</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setAutoPrint(!autoPrint)}
-              className={cn(
-                "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none",
-                autoPrint ? "bg-emerald-500" : "bg-slate-200"
-              )}
-            >
-              <span
+              <button
+                type="button"
+                onClick={() => setAutoPrint(!autoPrint)}
                 className={cn(
-                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                  autoPrint ? "translate-x-5" : "translate-x-0"
+                  "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none",
+                  autoPrint ? "bg-emerald-500" : "bg-slate-200"
                 )}
-              />
-            </button>
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                    autoPrint ? "translate-x-5" : "translate-x-0"
+                  )}
+                />
+              </button>
+            </div>
+
+            {/* Collapsible Receipt Customizer */}
+            <div className="border-t border-slate-200/60 pt-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setShowReceiptSettings(!showReceiptSettings)}
+                className="w-full text-left flex items-center justify-between text-xs font-bold text-amber-600 hover:text-amber-700 transition-colors"
+              >
+                <span>🔧 Personnaliser l'en-tête & pied de page</span>
+                <span className="text-[10px]">{showReceiptSettings ? '▲ Masquer' : '▼ Afficher'}</span>
+              </button>
+              
+              {showReceiptSettings && (
+                <div className="mt-3 space-y-3 bg-white p-3 rounded-xl border border-slate-200">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">En-tête du Ticket</label>
+                    <textarea
+                      value={receiptHeader}
+                      onChange={(e) => {
+                        setReceiptHeader(e.target.value);
+                        localStorage.setItem('receipt_header', e.target.value);
+                      }}
+                      rows={2}
+                      className="w-full text-xs p-2 border border-slate-200 rounded-lg outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 font-mono"
+                      placeholder="MHM E-boutique&#10;Tel: +221..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pied de page du Ticket</label>
+                    <textarea
+                      value={receiptFooter}
+                      onChange={(e) => {
+                        setReceiptFooter(e.target.value);
+                        localStorage.setItem('receipt_footer', e.target.value);
+                      }}
+                      rows={2}
+                      className="w-full text-xs p-2 border border-slate-200 rounded-lg outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-100 font-mono"
+                      placeholder="Merci pour votre confiance !&#10;MHM E-boutique"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -611,6 +659,19 @@ function printReceipt(transaction: any) {
   const doc = iframe.contentWindow?.document || iframe.contentDocument;
   if (!doc) return;
 
+  const headerRaw = localStorage.getItem('receipt_header') || 'MHM E-boutique\nGestion de Ventes & Caisse';
+  const footerRaw = localStorage.getItem('receipt_footer') || 'Merci pour votre confiance !\nMHM E-boutique';
+
+  const headerHtml = headerRaw.split('\n').map((line, idx) => {
+    if (idx === 0) return `<h2 style="margin: 0 0 4px 0; font-size: 18px; font-weight: bold;">${line}</h2>`;
+    return `<p style="margin: 2px 0 0 0; font-size: 12px;">${line}</p>`;
+  }).join('');
+
+  const footerHtml = footerRaw.split('\n').map((line, idx) => {
+    if (idx === 0) return `<p style="margin: 0; font-weight: bold;">${line}</p>`;
+    return `<p style="margin: 4px 0 0 0;">${line}</p>`;
+  }).join('');
+
   const itemsHtml = transaction.items.map((item: any) => `
     <tr>
       <td style="padding: 6px 0; font-size: 13px; text-align: left;">
@@ -647,8 +708,7 @@ function printReceipt(transaction: any) {
       </head>
       <body>
         <div class="text-center">
-          <h2 style="margin: 0 0 4px 0; font-size: 18px; font-weight: bold;">MHM E-boutique</h2>
-          <p style="margin: 0; font-size: 12px;">Gestion de Ventes & Caisse</p>
+          ${headerHtml}
           <p style="margin: 4px 0 0 0; font-size: 11px;">Date: ${new Date(transaction.timestamp).toLocaleString('fr-FR')}</p>
           <p style="margin: 2px 0 0 0; font-size: 10px; color: #555;">ID: ${transaction.id.substring(0, 8)}</p>
         </div>
@@ -685,8 +745,7 @@ function printReceipt(transaction: any) {
         <div class="border-dashed"></div>
         
         <div class="text-center" style="font-size: 11px; margin-top: 15px;">
-          <p style="margin: 0; font-weight: bold;">Merci pour votre confiance !</p>
-          <p style="margin: 4px 0 0 0;">MHM E-boutique</p>
+          ${footerHtml}
         </div>
         
         <script>
