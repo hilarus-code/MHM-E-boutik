@@ -54,12 +54,12 @@ export default function InventoryView() {
     try {
       const res = await fetch('/api/db/test-connection');
       const data = await res.json();
-      if (res.ok && data.success) {
+      if (res.ok && data?.success) {
         setTestStatus('success');
         setTestResult(data);
       } else {
         setTestStatus('failed');
-        setTestResult(data);
+        setTestResult(data || { error: "Réponse invalide du serveur" });
       }
     } catch (err: any) {
       setTestStatus('failed');
@@ -155,9 +155,9 @@ export default function InventoryView() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredProducts = (products || []).filter(p =>
+    (p.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+    (p.category?.toLowerCase() || '').includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -336,14 +336,14 @@ export default function InventoryView() {
                     <tr key={product.id} className="hover:bg-slate-50/80 transition-colors group">
                       <td className="p-4">
                         <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {product.name}
+                          {product.name || 'Sans nom'}
                           {product.format && (
                             <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-normal">
                               {product.format}
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{product.id.substring(0, 8)}...</div>
+                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{product.id?.substring(0, 8)}...</div>
                       </td>
                       <td className="p-4">
                         <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
@@ -411,7 +411,7 @@ export default function InventoryView() {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
                     {modalMode === 'create' 
                       ? 'Remplissez les détails pour ajouter un produit dans la base cloud.' 
-                      : `Ajustez les détails du produit ID: ${selectedProduct?.id.substring(0,8)}...`}
+                      : `Ajustez les détails du produit ID: ${selectedProduct?.id?.substring(0,8)}...`}
                   </p>
                 </div>
               </div>
