@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Download, Calendar, Mail } from 'lucide-react';
-import { db } from '../lib/db';
+import { FileText, Download, Calendar, Mail, Cloud, Database, RefreshCw, AlertCircle, Check } from 'lucide-react';
+import { db, isSupabaseConfigured, syncLocalToSupabase } from '../lib/db';
 import { Transaction, Session } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export default function ReportsView() {
   const [sessions, setSessions] = useState<Session[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    products: number;
+    sessions: number;
+    transactions: number;
+    credits: number;
+  } | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -17,6 +25,28 @@ export default function ReportsView() {
     };
     load();
   }, []);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    setSyncResult(null);
+    try {
+      const res = await syncLocalToSupabase();
+      setSyncResult({
+        success: true,
+        products: res.products,
+        sessions: res.sessions,
+        transactions: res.transactions,
+        credits: res.credits
+      });
+      // reload data
+      setSessions(await db.getSessions());
+      setTransactions(await db.getAllTransactions());
+    } catch (e: any) {
+      alert("Erreur lors de la synchronisation : " + (e.message || e));
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleSendReport = (session: Session) => {
     alert(`Rapport de la session ${format(session.startTime, 'dd MMM')} envoyé à l'administrateur !`);
@@ -29,6 +59,83 @@ export default function ReportsView() {
           <FileText className="w-6 h-6 md:w-8 md:h-8 mr-3 text-blue-500" />
           Rapports Journaliers
         </h2>
+
+        {/* Database Status & Synchronization Panel */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div className="flex items-start">
+              <div className={cn(
+                "p-3 rounded-xl mr-4",
+                isSupabaseConfigured ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"
+              )}>
+                {isSupabaseConfigured ? (
+                  <div className="relative">
+                    <Cloud className="w-6 h-6" />
+                    <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white animate-pulse"></span>
+                  </div>
+                ) : (
+                  <AlertCircle className="w-6 h-6" />
+                )}
+              </div>
+              <div>
+                <h3 className="font-bold text-slate-900 flex items-center">
+                  Base de données : {isSupabaseConfigured ? "Supabase Cloud Connectée" : "Mode Local (Hors ligne)"}
+                </h3>
+                <p className="text-xs md:text-sm text-slate-500 mt-1 max-w-xl">
+                  {isSupabaseConfigured 
+                    ? "Toutes les ventes et données d'inventaire sont directement enregistrées en temps réel sur la base de données cloud Supabase de production."
+                    : "L'application fonctionne actuellement sur la base locale hors ligne de ce navigateur. Configurez vos clés Supabase pour sauvegarder dans le cloud."}
+                </p>
+              </div>
+            </div>
+
+            {isSupabaseConfigured && (
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className={cn(
+                  "flex items-center justify-center px-5 py-2.5 bg-slate-900 text-white font-bold rounded-xl shadow-md transition-all text-sm w-full md:w-auto hover:bg-slate-800",
+                  isSyncing && "opacity-50 cursor-not-allowed"
+                )}
+              >
+                <RefreshCw className={cn("w-4 h-4 mr-2", isSyncing && "animate-spin")} />
+                {isSyncing ? "Synchronisation..." : "Synchroniser les données locales"}
+              </button>
+            )}
+          </div>
+
+          {syncResult && (
+            <div className="mt-4 p-4 bg-emerald-50 border border-emerald-100 rounded-xl flex items-start animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="p-1.5 bg-emerald-100 text-emerald-700 rounded-lg mr-3 mt-0.5">
+                <Check className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-emerald-900 text-sm">Synchronisation réussie !</p>
+                <p className="text-xs text-emerald-700 mt-1">
+                  Les données suivantes ont été exportées avec succès vers la base de données de production :
+                </p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3">
+                  <div className="bg-white/80 p-2 rounded-lg border border-emerald-100/50 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400">Produits</p>
+                    <p className="text-base font-black text-slate-800">{syncResult.products}</p>
+                  </div>
+                  <div className="bg-white/80 p-2 rounded-lg border border-emerald-100/50 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400">Sessions</p>
+                    <p className="text-base font-black text-slate-800">{syncResult.sessions}</p>
+                  </div>
+                  <div className="bg-white/80 p-2 rounded-lg border border-emerald-100/50 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400">Transactions</p>
+                    <p className="text-base font-black text-slate-800">{syncResult.transactions}</p>
+                  </div>
+                  <div className="bg-white/80 p-2 rounded-lg border border-emerald-100/50 text-center">
+                    <p className="text-[10px] uppercase font-bold text-slate-400">Crédits</p>
+                    <p className="text-base font-black text-slate-800">{syncResult.credits}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="space-y-4 md:space-y-6">
           {sessions.filter(s => s.status === 'CLOSED').map(session => {

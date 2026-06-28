@@ -23,6 +23,18 @@ export default function Layout() {
 
   const totalCartItems = cart.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Restore session on mount
+  useEffect(() => {
+    const savedRole = localStorage.getItem('mhm_auth_role');
+    if (savedRole === 'admin') {
+      setIsAdmin(true);
+      setIsAuthenticated(true);
+    } else if (savedRole === 'vendeur') {
+      setIsAdmin(false);
+      setIsAuthenticated(true);
+    }
+  }, [setIsAdmin]);
+
   // Auto prompt session
   useEffect(() => {
     if (isAuthenticated && !activeSession && !hasPromptedSession) {
@@ -33,12 +45,14 @@ export default function Layout() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'admin') {
+    if (passwordInput === 'mhm_admin_2026!') {
       setIsAdmin(true);
       setIsAuthenticated(true);
-    } else if (passwordInput === 'vendeur') {
+      localStorage.setItem('mhm_auth_role', 'admin');
+    } else if (passwordInput === 'mhm_vendeur_2026!') {
       setIsAdmin(false);
       setIsAuthenticated(true);
+      localStorage.setItem('mhm_auth_role', 'vendeur');
     } else {
       alert("Mot de passe incorrect");
     }
@@ -49,6 +63,7 @@ export default function Layout() {
     setIsAdmin(false);
     setPasswordInput('');
     setCurrentView('POS');
+    localStorage.removeItem('mhm_auth_role');
   };
 
   const NavItem = ({ view, icon: Icon, label, badge, requiresAdmin = false }: { view: View, icon: any, label: string, badge?: number, requiresAdmin?: boolean }) => {
@@ -104,7 +119,7 @@ export default function Layout() {
               Entrer
             </button>
             <p className="text-xs text-center text-slate-400 mt-4">
-              Admin: "admin" | Vendeur: "vendeur"
+              Admin: "mhm_admin_2026!" | Vendeur: "mhm_vendeur_2026!"
             </p>
           </form>
         </div>

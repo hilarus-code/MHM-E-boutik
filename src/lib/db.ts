@@ -182,4 +182,80 @@ const localDb = {
   }
 };
 
+export async function syncLocalToSupabase() {
+  if (!isSupabaseConfigured) {
+    throw new Error("Supabase n'est pas configuré.");
+  }
+
+  const results = {
+    products: 0,
+    sessions: 0,
+    transactions: 0,
+    credits: 0
+  };
+
+  try {
+    // 1. Sync Products
+    const localProducts = await localDb.getProducts();
+    for (const prod of localProducts) {
+      await supabaseDb.updateProduct(prod);
+      results.products++;
+    }
+
+    // 2. Sync Sessions & Session Expenses
+    const localSessions = await localDb.getSessions();
+    for (const sess of localSessions) {
+      // Create/update session in Supabase
+      await supabaseDb.updateSession(sess);
+      
+      // Sync Expenses for this session if any
+      const { supabase } = await import('./supabase');
+      if (supabase && sess.expenses && sess.expenses.length > 0) {
+        for (const exp of sess.expenses) {
+          await supabase.from('expenses').upsert({
+            id: exp.id,
+            session_id: sess.id,
+            description: exp.description,
+            amount: exp.amount,
+            timestamp: new Date(exp.timestamp).toISOString()
+          });
+        }
+      }
+      results.sessions++;
+    }
+
+    // 3. Sync Transactions (checking for duplicates first)
+    const localTransactions = await localDb.getAllTransactions();
+    const { supabase } = await import('./supabase');
+    for (const tx of localTransactions) {
+      if (supabase) {
+        const { data: existing } = await supabase
+          .from('transactions')
+          .select('id')
+          .eq('id', tx.id)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabaseDb.saveTransaction(tx);
+          results.transactions++;
+        }
+      }
+    }
+
+    // 4. Sync Credits
+    const localCredits = await localDb.getCredits();
+    for (const cred of localCredits) {
+      await supabaseDb.saveCredit(cred);
+      results.credits++;
+    }
+
+    return results;
+  } catch (error) {
+    console.error("Erreur de synchronisation locale -> cloud:", error);
+    throw error;
+  }
+}
+
 export const db = isSupabaseConfigured ? supabaseDb : localDb;
+export { isSupabaseConfigured };
+

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import fuzzysort from 'fuzzysort';
-import { Search, Plus, Minus, Trash2, CreditCard, Receipt, AlertCircle, Package, ShoppingCart } from 'lucide-react';
+import { Search, Plus, Minus, Trash2, CreditCard, Receipt, AlertCircle, Package, ShoppingCart, Printer } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Product } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -356,6 +356,7 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
   const [clientName, setClientName] = useState('');
   const [tendered, setTendered] = useState<string>(cartTotal.toString());
   const [isProcessing, setIsProcessing] = useState(false);
+  const [autoPrint, setAutoPrint] = useState(true);
 
   const tenderedAmount = parseFloat(tendered) || 0;
   
@@ -421,8 +422,13 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
 
       await db.saveTransaction(transaction);
       
-      // Simulate receipt printing
-      console.log("Printing receipt...", transaction);
+      if (autoPrint) {
+        try {
+          printReceipt(transaction);
+        } catch (printErr) {
+          console.error("Erreur d'impression du ticket:", printErr);
+        }
+      }
       
       onSuccess();
     } catch (e) {
@@ -538,7 +544,35 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-2 md:gap-3 mt-6 md:mt-8">
+          {/* Auto-print toggle option */}
+          <div className="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg mr-3">
+                <Printer className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-800">Imprimer le ticket</p>
+                <p className="text-[10px] md:text-xs text-slate-400">Impression automatique après validation</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAutoPrint(!autoPrint)}
+              className={cn(
+                "relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-none",
+                autoPrint ? "bg-emerald-500" : "bg-slate-200"
+              )}
+            >
+              <span
+                className={cn(
+                  "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                  autoPrint ? "translate-x-5" : "translate-x-0"
+                )}
+              />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 md:gap-3">
             <button 
               onClick={onClose}
               className="py-3 md:py-4 rounded-xl font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors text-sm md:text-base"
@@ -565,3 +599,110 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
     </div>
   );
 }
+
+function printReceipt(transaction: any) {
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'absolute';
+  iframe.style.width = '0px';
+  iframe.style.height = '0px';
+  iframe.style.border = 'none';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (!doc) return;
+
+  const itemsHtml = transaction.items.map((item: any) => `
+    <tr>
+      <td style="padding: 6px 0; font-size: 13px; text-align: left;">
+        ${item.quantity}x ${item.name} 
+        ${item.isWholesale ? '<span style="font-size: 10px; color: #555;">(Gros)</span>' : ''}
+      </td>
+      <td style="text-align: right; padding: 6px 0; font-size: 13px; font-weight: bold;">
+        ${(item.unitPrice * item.quantity).toLocaleString('fr-FR')} F
+      </td>
+    </tr>
+  `).join('');
+
+  const html = `
+    <html>
+      <head>
+        <title>Ticket MHM E-boutique</title>
+        <style>
+          @page { size: 80mm auto; margin: 0; }
+          body {
+            font-family: 'Courier New', Courier, monospace;
+            width: 72mm;
+            margin: 0;
+            padding: 15px 10px;
+            color: #000;
+            background-color: #fff;
+          }
+          .text-center { text-align: center; }
+          .font-bold { font-weight: bold; }
+          .border-dashed { border-bottom: 1px dashed #000; margin: 12px 0; }
+          table { width: 100%; border-collapse: collapse; }
+          .flex-between { display: flex; justify-content: space-between; margin: 4px 0; }
+          .large-text { font-size: 16px; font-weight: bold; }
+        </style>
+      </head>
+      <body>
+        <div class="text-center">
+          <h2 style="margin: 0 0 4px 0; font-size: 18px; font-weight: bold;">MHM E-boutique</h2>
+          <p style="margin: 0; font-size: 12px;">Gestion de Ventes & Caisse</p>
+          <p style="margin: 4px 0 0 0; font-size: 11px;">Date: ${new Date(transaction.timestamp).toLocaleString('fr-FR')}</p>
+          <p style="margin: 2px 0 0 0; font-size: 10px; color: #555;">ID: ${transaction.id.substring(0, 8)}</p>
+        </div>
+        
+        <div class="border-dashed"></div>
+        
+        <table>
+          <thead>
+            <tr>
+              <th style="text-align: left; padding-bottom: 6px; font-size: 12px;">Désignation</th>
+              <th style="text-align: right; padding-bottom: 6px; font-size: 12px;">Montant</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+        
+        <div class="border-dashed"></div>
+        
+        <div class="flex-between large-text">
+          <span>TOTAL :</span>
+          <span>${transaction.totalAmount.toLocaleString('fr-FR')} F CFA</span>
+        </div>
+        <div class="flex-between" style="font-size: 12px;">
+          <span>Reçu :</span>
+          <span>${transaction.amountTendered.toLocaleString('fr-FR')} F CFA</span>
+        </div>
+        <div class="flex-between" style="font-size: 12px;">
+          <span>Rendu :</span>
+          <span>${transaction.change.toLocaleString('fr-FR')} F CFA</span>
+        </div>
+        
+        <div class="border-dashed"></div>
+        
+        <div class="text-center" style="font-size: 11px; margin-top: 15px;">
+          <p style="margin: 0; font-weight: bold;">Merci pour votre confiance !</p>
+          <p style="margin: 4px 0 0 0;">MHM E-boutique</p>
+        </div>
+        
+        <script>
+          window.onload = function() {
+            window.print();
+            setTimeout(function() {
+              window.parent.document.body.removeChild(window.frameElement);
+            }, 1000);
+          }
+        </script>
+      </body>
+    </html>
+  `;
+
+  iframe.contentWindow?.document.open();
+  iframe.contentWindow?.document.write(html);
+  iframe.contentWindow?.document.close();
+}
+
