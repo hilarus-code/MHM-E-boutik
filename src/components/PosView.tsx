@@ -23,29 +23,30 @@ export default function PosView() {
   }, []);
 
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category));
+    const cats = new Set((products || []).map(p => p.category).filter(Boolean));
     return ['Toutes', ...Array.from(cats)];
   }, [products]);
 
   const filteredProductsWithRank = useMemo(() => {
+    const safeProducts = products || [];
     if (searchTerm) {
-      let resultToSearch = products;
+      let resultToSearch = safeProducts;
       if (activeCategory !== 'Toutes') {
-        resultToSearch = products.filter(p => p.category === activeCategory);
+        resultToSearch = safeProducts.filter(p => p.category === activeCategory);
       }
       const searchResults = fuzzysort.go(searchTerm, resultToSearch, { key: 'name', threshold: -10000 });
       return searchResults.map((res, index) => ({ 
         product: res.obj, 
         rank: index,
-        highlightedName: res.highlight('<span class="text-emerald-700 bg-emerald-200 px-0.5 rounded">', '</span>') || res.obj.name
+        highlightedName: res.highlight('<span class="text-emerald-700 bg-emerald-200 px-0.5 rounded">', '</span>') || res.obj.name || ''
       }));
     }
 
-    let result = products;
+    let result = safeProducts;
     if (activeCategory !== 'Toutes') {
-      result = products.filter(p => p.category === activeCategory);
+      result = safeProducts.filter(p => p.category === activeCategory);
     }
-    return result.map(p => ({ product: p, rank: -1, highlightedName: p.name }));
+    return result.map(p => ({ product: p, rank: -1, highlightedName: p.name || '' }));
   }, [products, searchTerm, activeCategory]);
 
   const handleCheckout = () => {

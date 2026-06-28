@@ -61,7 +61,7 @@ export default function DashboardView() {
           .slice(0, 5);
         setChartData(chartD);
 
-        setLowStock((products || []).filter(p => p.stock <= (p.minStockLevel || 20)).sort((a, b) => a.stock - b.stock));
+        setLowStock((products || []).filter(p => (p.stock || 0) <= (p.minStockLevel || 20)).sort((a, b) => (a.stock || 0) - (b.stock || 0)));
       } catch (err) {
         console.error("Dashboard failed to load database data:", err);
       }
