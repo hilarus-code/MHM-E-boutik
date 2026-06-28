@@ -721,6 +721,24 @@ app.use(express.json());
 
   // Vite middleware for development
   async function init() {
+    // Run schema migrations if database is configured
+    if (dbConnectionString) {
+      try {
+        console.log("[Migration] Checking database schema...");
+        const fs = await import("fs");
+        const path = await import("path");
+        const sqlFilePath = path.join(process.cwd(), 'supabase-schema.sql');
+        if (fs.existsSync(sqlFilePath)) {
+          const sql = fs.readFileSync(sqlFilePath, 'utf8');
+          console.log("[Migration] Bootstrapping PostgreSQL/Supabase tables...");
+          await pool.query(sql);
+          console.log("[Migration] Database schema applied successfully.");
+        }
+      } catch (err: any) {
+        console.error("[Migration] Non-blocking schema bootstrap warning:", err.message || err);
+      }
+    }
+
     if (process.env.NODE_ENV !== "production") {
       const vite = await createViteServer({
         server: { middlewareMode: true },

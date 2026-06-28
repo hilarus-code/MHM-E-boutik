@@ -49,7 +49,7 @@ export default function ReportsView() {
   };
 
   const handleSendReport = (session: Session) => {
-    alert(`Rapport de la session ${format(session.startTime, 'dd MMM')} envoyé à l'administrateur !`);
+    alert(`Rapport de la session ${format(new Date(session.startTime), 'dd MMM')} envoyé à l'administrateur !`);
   };
 
   return (
@@ -158,10 +158,10 @@ export default function ReportsView() {
                     <Calendar className="w-5 h-5 text-slate-400 mr-3 mt-1 md:mt-0" />
                     <div>
                       <h3 className="font-bold text-base md:text-lg text-slate-900">
-                        {format(session.startTime, 'EEEE dd MMMM yyyy', { locale: fr })}
+                        {format(new Date(session.startTime), 'EEEE dd MMMM yyyy', { locale: fr })}
                       </h3>
                       <p className="text-sm text-slate-500">
-                        {format(session.startTime, 'HH:mm')} - {session.endTime ? format(session.endTime, 'HH:mm') : ''}
+                        {format(new Date(session.startTime), 'HH:mm')} - {session.endTime ? format(new Date(session.endTime), 'HH:mm') : ''}
                       </p>
                     </div>
                   </div>

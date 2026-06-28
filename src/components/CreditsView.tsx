@@ -126,7 +126,7 @@ export default function CreditsView() {
               <div className="flex justify-between items-start mb-4">
                 <div>
                   <h3 className="font-bold text-lg text-slate-900">{credit.clientName}</h3>
-                  <p className="text-xs text-slate-500">{format(credit.timestamp, 'dd MMM yyyy - HH:mm', { locale: fr })}</p>
+                  <p className="text-xs text-slate-500">{format(new Date(credit.timestamp), 'dd MMM yyyy - HH:mm', { locale: fr })}</p>
                 </div>
                 {credit.status === 'PAID' ? (
                   <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-md text-xs font-bold flex items-center">

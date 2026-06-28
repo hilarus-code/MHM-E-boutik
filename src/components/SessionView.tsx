@@ -131,7 +131,7 @@ export default function SessionView() {
               <div className="space-y-4">
                 <div>
                   <p className="text-emerald-700/70 text-sm font-medium mb-1">Ouverte à</p>
-                  <p className="font-bold text-emerald-900">{format(activeSession.startTime, 'HH:mm - dd MMM', { locale: fr })}</p>
+                  <p className="font-bold text-emerald-900">{format(new Date(activeSession.startTime), 'HH:mm - dd MMM', { locale: fr })}</p>
                 </div>
                 <div>
                   <p className="text-emerald-700/70 text-sm font-medium mb-1">Fond de caisse initial</p>
@@ -269,10 +269,10 @@ export default function SessionView() {
               <div className="flex items-center justify-between mb-4 border-b border-slate-100 pb-4">
                 <div>
                   <p className="font-bold text-slate-900 mb-1">
-                    {format(session.startTime, 'dd MMMM yyyy', { locale: fr })}
+                    {format(new Date(session.startTime), 'dd MMMM yyyy', { locale: fr })}
                   </p>
                   <p className="text-sm font-medium text-slate-500">
-                    {format(session.startTime, 'HH:mm')} - {session.endTime ? format(session.endTime, 'HH:mm') : ''}
+                    {format(new Date(session.startTime), 'HH:mm')} - {session.endTime ? format(new Date(session.endTime), 'HH:mm') : ''}
                   </p>
                 </div>
                 

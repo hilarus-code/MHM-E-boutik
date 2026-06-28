@@ -19,48 +19,52 @@ export default function DashboardView() {
 
   useEffect(() => {
     const loadData = async () => {
-      const txs = await db.getAllTransactions();
-      const products = await db.getProducts();
-      const sessions = await db.getSessions();
-      
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
+      try {
+        const txs = await db.getAllTransactions();
+        const products = await db.getProducts();
+        const sessions = await db.getSessions();
+        
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
 
-      // Filter for today
-      const todayTxs = txs.filter(t => new Date(t.timestamp) >= today);
-      const todaySessions = sessions.filter(s => new Date(s.startTime) >= today || (s.endTime && new Date(s.endTime) >= today));
-      
-      const todayExpenses = todaySessions.reduce((sum, s) => sum + s.expenses.reduce((s2, e) => s2 + e.amount, 0), 0);
-      
-      const rev = todayTxs.reduce((sum, t) => sum + t.totalAmount, 0);
-      const grossMargin = todayTxs.reduce((sum, t) => sum + t.totalProfit, 0);
-      
-      setStats({
-        totalRevenue: rev,
-        grossMargin: grossMargin,
-        totalExpenses: todayExpenses,
-        totalProfit: grossMargin - todayExpenses,
-        transactionCount: todayTxs.length
-      });
-
-      // Product sales for chart (today)
-      const productSales: Record<string, { name: string, qty: number, profit: number }> = {};
-      todayTxs.forEach(t => {
-        t.items.forEach(i => {
-          if (!productSales[i.productId]) {
-            productSales[i.productId] = { name: i.name, qty: 0, profit: 0 };
-          }
-          productSales[i.productId].qty += i.quantity;
-          productSales[i.productId].profit += (i.unitPrice - i.costPrice) * i.quantity;
+        // Filter for today
+        const todayTxs = (txs || []).filter(t => new Date(t.timestamp) >= today);
+        const todaySessions = (sessions || []).filter(s => new Date(s.startTime) >= today || (s.endTime && new Date(s.endTime) >= today));
+        
+        const todayExpenses = todaySessions.reduce((sum, s) => sum + (s.expenses || []).reduce((s2, e) => s2 + e.amount, 0), 0);
+        
+        const rev = todayTxs.reduce((sum, t) => sum + t.totalAmount, 0);
+        const grossMargin = todayTxs.reduce((sum, t) => sum + t.totalProfit, 0);
+        
+        setStats({
+          totalRevenue: rev,
+          grossMargin: grossMargin,
+          totalExpenses: todayExpenses,
+          totalProfit: grossMargin - todayExpenses,
+          transactionCount: todayTxs.length
         });
-      });
 
-      const chartD = Object.values(productSales)
-        .sort((a, b) => b.qty - a.qty)
-        .slice(0, 5);
-      setChartData(chartD);
+        // Product sales for chart (today)
+        const productSales: Record<string, { name: string, qty: number, profit: number }> = {};
+        todayTxs.forEach(t => {
+          (t.items || []).forEach(i => {
+            if (!productSales[i.productId]) {
+              productSales[i.productId] = { name: i.name, qty: 0, profit: 0 };
+            }
+            productSales[i.productId].qty += i.quantity;
+            productSales[i.productId].profit += (i.unitPrice - i.costPrice) * i.quantity;
+          });
+        });
 
-      setLowStock(products.filter(p => p.stock <= (p.minStockLevel || 20)).sort((a, b) => a.stock - b.stock));
+        const chartD = Object.values(productSales)
+          .sort((a, b) => b.qty - a.qty)
+          .slice(0, 5);
+        setChartData(chartD);
+
+        setLowStock((products || []).filter(p => p.stock <= (p.minStockLevel || 20)).sort((a, b) => a.stock - b.stock));
+      } catch (err) {
+        console.error("Dashboard failed to load database data:", err);
+      }
     };
     
     loadData();

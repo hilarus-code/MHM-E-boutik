@@ -32,20 +32,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [hasPromptedSession, setHasPromptedSession] = useState(false);
 
   const refreshProducts = async () => {
-    const p = await db.getProducts();
-    setProducts(p);
+    try {
+      const p = await db.getProducts();
+      setProducts(Array.isArray(p) ? p : []);
+    } catch (err) {
+      console.error("Failed to fetch products from DB:", err);
+      setProducts([]);
+    }
   };
 
   const refreshSession = async () => {
-    const s = await db.getActiveSession();
-    setActiveSession(s);
+    try {
+      const s = await db.getActiveSession();
+      setActiveSession(s);
+    } catch (err) {
+      console.error("Failed to fetch active session from DB:", err);
+      setActiveSession(null);
+    }
   };
 
   useEffect(() => {
     const init = async () => {
-      await db.initProductsIfEmpty();
-      await refreshProducts();
-      await refreshSession();
+      try {
+        await db.initProductsIfEmpty();
+      } catch (err) {
+        console.error("Failed to initialize products on start:", err);
+      }
+      
+      try {
+        await refreshProducts();
+      } catch (err) {
+        console.error("refreshProducts error:", err);
+      }
+
+      try {
+        await refreshSession();
+      } catch (err) {
+        console.error("refreshSession error:", err);
+      }
+      
       setLoading(false);
     };
     init();
