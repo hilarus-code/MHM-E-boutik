@@ -155,10 +155,13 @@ export default function InventoryView() {
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    p.category.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredProducts = (products || []).filter(p => {
+    if (!p) return false;
+    const name = String(p.name || '').toLowerCase();
+    const category = String(p.category || '').toLowerCase();
+    const search = (searchTerm || '').toLowerCase();
+    return name.includes(search) || category.includes(search);
+  });
 
   return (
     <div className="flex flex-col h-full bg-slate-50 overflow-y-auto">
@@ -332,61 +335,75 @@ export default function InventoryView() {
                     </td>
                   </tr>
                 ) : (
-                  filteredProducts.map(product => (
-                    <tr key={product.id} className="hover:bg-slate-50/80 transition-colors group">
-                      <td className="p-4">
-                        <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                          {product.name}
-                          {product.format && (
-                            <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-normal">
-                              {product.format}
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono mt-0.5">{product.id.substring(0, 8)}...</div>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
-                          {product.category}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right font-medium text-slate-500">{formatCurrency(product.costPrice)}</td>
-                      <td className="p-4 text-right font-bold text-indigo-600">{formatCurrency(product.wholesalePrice)}</td>
-                      <td className="p-4 text-right font-semibold text-slate-500">
-                        {product.unitsPerWholesale || 24} u <span className="text-xs text-slate-400 font-normal">({product.wholesaleThreshold || 24})</span>
-                      </td>
-                      <td className="p-4 text-right font-black text-slate-900">{formatCurrency(product.retailPrice)}</td>
-                      <td className="p-4 text-right">
-                        <span className={cn(
-                          "px-2.5 py-1 rounded-lg text-xs font-bold inline-block",
-                          product.stock <= (product.minStockLevel || 20) 
-                            ? "bg-rose-100 text-rose-700 animate-pulse border border-rose-200" 
-                            : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                        )}>
-                          {product.stock}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right font-medium text-slate-400">{product.minStockLevel || 20}</td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => handleOpenEdit(product)} 
-                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-                            title="Modifier ce produit"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleDeleteProduct(product)} 
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Supprimer ce produit"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
+                  filteredProducts.map(product => {
+                    const idStr = String(product?.id || '');
+                    const name = product?.name || 'Sans nom';
+                    const category = product?.category || 'Autres';
+                    const format = product?.format || '';
+                    const costPrice = product?.costPrice || 0;
+                    const wholesalePrice = product?.wholesalePrice || 0;
+                    const unitsPerWholesale = product?.unitsPerWholesale || 24;
+                    const wholesaleThreshold = product?.wholesaleThreshold || 24;
+                    const retailPrice = product?.retailPrice || 0;
+                    const stock = product?.stock || 0;
+                    const minStockLevel = product?.minStockLevel || 20;
+
+                    return (
+                      <tr key={idStr || crypto.randomUUID()} className="hover:bg-slate-50/80 transition-colors group">
+                        <td className="p-4">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                            {name}
+                            {format && (
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-normal">
+                                {format}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">{idStr.substring(0, 8)}...</div>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-xs font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-1 rounded-full">
+                            {category}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right font-medium text-slate-500">{formatCurrency(costPrice)}</td>
+                        <td className="p-4 text-right font-bold text-indigo-600">{formatCurrency(wholesalePrice)}</td>
+                        <td className="p-4 text-right font-semibold text-slate-500">
+                          {unitsPerWholesale} u <span className="text-xs text-slate-400 font-normal">({wholesaleThreshold})</span>
+                        </td>
+                        <td className="p-4 text-right font-black text-slate-900">{formatCurrency(retailPrice)}</td>
+                        <td className="p-4 text-right">
+                          <span className={cn(
+                            "px-2.5 py-1 rounded-lg text-xs font-bold inline-block",
+                            stock <= minStockLevel 
+                              ? "bg-rose-100 text-rose-700 animate-pulse border border-rose-200" 
+                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                          )}>
+                            {stock}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right font-medium text-slate-400">{minStockLevel}</td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              onClick={() => handleOpenEdit(product)} 
+                              className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                              title="Modifier ce produit"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteProduct(product)} 
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Supprimer ce produit"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -411,7 +428,7 @@ export default function InventoryView() {
                   <p className="text-xs text-slate-500 font-medium mt-0.5">
                     {modalMode === 'create' 
                       ? 'Remplissez les détails pour ajouter un produit dans la base cloud.' 
-                      : `Ajustez les détails du produit ID: ${selectedProduct?.id.substring(0,8)}...`}
+                      : `Ajustez les détails du produit ID: ${(selectedProduct?.id || '').substring(0,8)}...`}
                   </p>
                 </div>
               </div>
