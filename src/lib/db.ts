@@ -45,6 +45,10 @@ const localDb = {
     await productsStore.setItem(product.id, product);
   },
 
+  async deleteProduct(id: string): Promise<void> {
+    await productsStore.removeItem(id);
+  },
+
   async updateProductStock(id: string, quantityChange: number): Promise<void> {
     const product = await this.getProduct(id);
     if (product) {
@@ -205,6 +209,13 @@ const apiDb = {
       body: JSON.stringify(product)
     });
     if (!res.ok) throw new Error("Erreur de mise à jour du produit");
+  },
+
+  async deleteProduct(id: string): Promise<void> {
+    const res = await fetch(`/api/db/products/${id}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error("Erreur de suppression du produit");
   },
 
   async updateProductStock(id: string, quantityChange: number): Promise<void> {

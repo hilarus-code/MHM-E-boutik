@@ -276,6 +276,58 @@ app.use(express.json());
     res.json({ configured: !!dbConnectionString });
   });
 
+  // Test connection and return detailed logs/errors for diagnostic
+  app.get("/api/db/test-connection", async (req, res) => {
+    try {
+      if (!dbConnectionString) {
+        return res.json({
+          success: false,
+          error: "DATABASE_URL n'est pas configuré dans les variables d'environnement (.env)."
+        });
+      }
+      
+      // Parse database URL to hide password but show other components for diagnosis
+      let sanitizedUrl = "";
+      try {
+        const parsed = new URL(dbConnectionString);
+        sanitizedUrl = `${parsed.protocol}//${parsed.username}:******@${parsed.host}${parsed.pathname}`;
+      } catch (e) {
+        sanitizedUrl = "Format de DATABASE_URL invalide";
+      }
+
+      const client = await pool.connect();
+      try {
+        const nowRes = await client.query("SELECT NOW() as now");
+        const tableCountRes = await client.query(`
+          SELECT table_name 
+          FROM information_schema.tables 
+          WHERE table_schema = 'public'
+        `);
+        const tables = tableCountRes.rows.map(r => r.table_name);
+        
+        return res.json({
+          success: true,
+          message: "Connexion réussie à la base de données !",
+          databaseTime: nowRes.rows[0].now,
+          tablesDetected: tables,
+          connectionUrl: sanitizedUrl
+        });
+      } finally {
+        client.release();
+      }
+    } catch (err: any) {
+      console.error("Test connection failed:", err);
+      return res.status(500).json({
+        success: false,
+        error: err.message || "Erreur de connexion",
+        details: err.stack || String(err),
+        code: err.code,
+        host: err.host,
+        port: err.port
+      });
+    }
+  });
+
   // Get products
   app.get("/api/db/products", async (req, res) => {
     try {
@@ -326,6 +378,18 @@ app.use(express.json());
       res.json({ success: true, id: productId });
     } catch (err: any) {
       console.error("POST products error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Delete Product
+  app.delete("/api/db/products/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await pool.query('DELETE FROM products WHERE id = $1', [id]);
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("DELETE product error:", err);
       res.status(500).json({ error: err.message });
     }
   });
