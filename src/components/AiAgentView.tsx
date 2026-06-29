@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, User, Sparkles, Loader2, Database, Settings, X, ExternalLink } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { db } from '../lib/db';
-import { formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import Markdown from 'react-markdown';
 
 export default function AiAgentView() {
@@ -127,7 +127,7 @@ export default function AiAgentView() {
           } else if (call.name === 'createProduct') {
              const args = call.args as any;
              await db.updateProduct({
-               id: crypto.randomUUID(),
+               id: generateUUID(),
                name: args.name,
                category: args.category || 'Toutes',
                retailPrice: args.retailPrice,

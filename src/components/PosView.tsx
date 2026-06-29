@@ -3,7 +3,7 @@ import fuzzysort from 'fuzzysort';
 import { Search, Plus, Minus, Trash2, CreditCard, Receipt, AlertCircle, Package, ShoppingCart, Printer } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Product } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { db } from '../lib/db';
 
 export default function PosView() {
@@ -389,7 +389,7 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
     try {
       if (paymentType === 'CREDIT') {
         await db.saveCredit({
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           clientName: clientName.trim(),
           totalAmount: cartTotal,
           paidAmount: tenderedAmount,
@@ -400,7 +400,7 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
       }
 
       const transaction = {
-        id: crypto.randomUUID(),
+        id: generateUUID(),
         sessionId: activeSession.id,
         timestamp: Date.now(),
         items: cart.map(item => {

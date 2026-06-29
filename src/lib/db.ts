@@ -1,3 +1,4 @@
+import { generateUUID } from "./utils";
 import localforage from 'localforage';
 import { Product, Transaction, Session, Credit } from '../types';
 import { initialProducts } from '../data/initial-products';
@@ -63,7 +64,7 @@ const localDb = {
     if (active) throw new Error("A session is already open");
 
     const newSession: Session = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       startTime: Date.now(),
       endTime: null,
       initialCash,
@@ -121,7 +122,7 @@ const localDb = {
     if (!session) throw new Error("No active session");
     
     session.expenses.push({
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       description,
       amount,
       timestamp: Date.now()
@@ -208,7 +209,10 @@ const apiDb = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(product)
     });
-    if (!res.ok) throw new Error("Erreur de mise à jour du produit");
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Erreur de mise à jour du produit: ${errorText}`);
+    }
   },
 
   async deleteProduct(id: string): Promise<void> {

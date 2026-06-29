@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Plus, CheckCircle, Clock } from 'lucide-react';
-import { formatCurrency, cn } from '../lib/utils';
+import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { db } from '../lib/db';
 import { Credit } from '../types';
 import { format } from 'date-fns';
@@ -30,7 +30,7 @@ export default function CreditsView() {
     if (!clientName || total <= 0) return;
 
     const credit: Credit = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       clientName,
       totalAmount: total,
       paidAmount: paid,

@@ -3,7 +3,7 @@ import {
   Package, Search, Edit2, Plus, Trash2, X, Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { Product, Category } from '../types';
 import { db } from '../lib/db';
 
@@ -88,7 +88,7 @@ export default function InventoryView() {
     }
 
     const productData: Product = {
-      id: modalMode === 'edit' && selectedProduct ? selectedProduct.id : crypto.randomUUID(),
+      id: modalMode === 'edit' && selectedProduct ? selectedProduct.id : "",
       name: formName.trim(),
       category: formCategory,
       format: formFormat.trim() || undefined,
@@ -208,7 +208,7 @@ export default function InventoryView() {
                     const minStockLevel = product?.minStockLevel || 20;
 
                     return (
-                      <tr key={idStr || crypto.randomUUID()} className="hover:bg-slate-50/80 transition-colors group">
+                      <tr key={idStr || generateUUID()} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="p-4">
                           <div className="font-bold text-slate-900 flex items-center gap-1.5">
                             {name}
