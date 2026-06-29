@@ -1,9 +1,8 @@
 import express from "express";
 import path from "path";
-import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Pool } from "pg";
-import crypto from "crypto";
+import { v4 as uuidv4 } from "uuid";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -14,7 +13,9 @@ if (dbConnectionString && dbConnectionString.startsWith('//')) {
 
 const pool = new Pool({
   connectionString: dbConnectionString,
-  ssl: dbConnectionString ? { rejectUnauthorized: false } : undefined
+  ssl: dbConnectionString ? { rejectUnauthorized: false } : undefined,
+  max: process.env.VERCEL ? 2 : 10,
+  connectionTimeoutMillis: 5000,
 });
 
 const app = express();
@@ -356,7 +357,7 @@ app.use(express.json());
   app.post("/api/db/products", async (req, res) => {
     try {
       const p = req.body;
-      const productId = p.id || crypto.randomUUID();
+      const productId = p.id || uuidv4();
       await pool.query(`
         INSERT INTO products (id, name, category, retail_price, wholesale_price, wholesale_threshold, units_per_wholesale, min_stock_level, stock, cost_price, format)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -490,7 +491,7 @@ app.use(express.json());
   app.post("/api/db/sessions/open", async (req, res) => {
     try {
       const { initialCash, id } = req.body;
-      const sessionId = id || crypto.randomUUID();
+      const sessionId = id || uuidv4();
       const result = await pool.query(`
         INSERT INTO sessions (id, start_time, initial_cash, status)
         VALUES ($1, NOW(), $2, 'OPEN')
@@ -562,7 +563,7 @@ app.use(express.json());
   app.post("/api/db/sessions/expenses", async (req, res) => {
     try {
       const { sessionId, description, amount, id } = req.body;
-      const expenseId = id || crypto.randomUUID();
+      const expenseId = id || uuidv4();
       await pool.query(`
         INSERT INTO expenses (id, session_id, description, amount, timestamp)
         VALUES ($1, $2, $3, $4, NOW())
@@ -580,7 +581,7 @@ app.use(express.json());
     try {
       await client.query('BEGIN');
       const tx = req.body;
-      const txId = tx.id || crypto.randomUUID();
+      const txId = tx.id || uuidv4();
       await client.query(`
         INSERT INTO transactions (id, session_id, timestamp, total_amount, total_profit, amount_tendered, "change", payment_method)
         VALUES ($1, $2, $3, $4, $5, $6, $7, 'CASH')
@@ -588,7 +589,7 @@ app.use(express.json());
         txId, tx.sessionId, new Date(tx.timestamp).toISOString(), tx.totalAmount, tx.totalProfit, tx.amountTendered, tx.change
       ]);
       for (const item of tx.items) {
-        const itemId = crypto.randomUUID();
+        const itemId = uuidv4();
         await client.query(`
           INSERT INTO transaction_items (id, transaction_id, product_id, name, quantity, unit_price, total_price, cost_price, is_wholesale, units_per_wholesale)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -650,7 +651,7 @@ app.use(express.json());
   app.post("/api/db/credits", async (req, res) => {
     try {
       const c = req.body;
-      const creditId = c.id || crypto.randomUUID();
+      const creditId = c.id || uuidv4();
       await pool.query(`
         INSERT INTO credits (id, client_name, total_amount, paid_amount, remaining_amount, timestamp, due_date, status)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -740,6 +741,8 @@ app.use(express.json());
     }
 
     if (process.env.NODE_ENV !== "production") {
+      const viteModule = await import("v" + "ite");
+      const createViteServer = viteModule.createServer;
       const vite = await createViteServer({
         server: { middlewareMode: true },
         appType: "spa",
