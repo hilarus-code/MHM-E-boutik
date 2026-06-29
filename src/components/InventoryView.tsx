@@ -103,7 +103,7 @@ export default function InventoryView() {
     };
 
     try {
-      logger.info('InventoryView', `Attempting to ${modalMode === 'add' ? 'create' : 'update'} product: ${productData.name}`, productData);
+      logger.info('InventoryView', `Attempting to ${modalMode === 'create' ? 'create' : 'update'} product: ${productData.name}`, productData);
       await db.updateProduct(productData);
       logger.info('InventoryView', `Successfully saved product: ${productData.name}`);
       await refreshProducts();
