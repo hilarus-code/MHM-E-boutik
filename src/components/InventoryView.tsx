@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  Package, Search, Edit2, Plus, AlertTriangle, RefreshCw, 
-  CheckCircle2, Server, Trash2, X, AlertCircle, HelpCircle, ArrowRight, Check
+  Package, Search, Edit2, Plus, Trash2, X, Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { cn, formatCurrency } from '../lib/utils';
@@ -22,11 +21,6 @@ export default function InventoryView() {
   const { products, refreshProducts } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   
-  // Database Diagnostics States
-  const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
-  const [testResult, setTestResult] = useState<any>(null);
-  const [showDiagnostics, setShowDiagnostics] = useState(true);
-
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
@@ -43,32 +37,6 @@ export default function InventoryView() {
   const [formUnitsPerWholesale, setFormUnitsPerWholesale] = useState('24');
   const [formMinStockLevel, setFormMinStockLevel] = useState('20');
   const [formStock, setFormStock] = useState('0');
-
-  // Load diagnostics on mount
-  useEffect(() => {
-    runDiagnostic();
-  }, []);
-
-  const runDiagnostic = async () => {
-    setTestStatus('testing');
-    try {
-      const res = await fetch('/api/db/test-connection');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setTestStatus('success');
-        setTestResult(data);
-      } else {
-        setTestStatus('failed');
-        setTestResult(data);
-      }
-    } catch (err: any) {
-      setTestStatus('failed');
-      setTestResult({
-        error: err.message || "Erreur de requête réseau",
-        details: err.stack || String(err)
-      });
-    }
-  };
 
   const handleOpenCreate = () => {
     setModalMode('create');
@@ -137,8 +105,6 @@ export default function InventoryView() {
       await db.updateProduct(productData);
       await refreshProducts();
       setIsModalOpen(false);
-      // Refresh connection diagnostic check to verify everything is working fine
-      runDiagnostic();
     } catch (err: any) {
       alert("Erreur lors de l'enregistrement de produit : " + err.message);
     }
@@ -189,113 +155,6 @@ export default function InventoryView() {
       </div>
 
       <div className="p-4 md:p-8 max-w-7xl mx-auto w-full space-y-6">
-        {/* Database Diagnostic & Logs Section */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Server className="w-5 h-5 text-slate-600" />
-              <span className="font-bold text-slate-800 text-sm">Diagnostic de Connexion Base de données Cloud (Supabase/PostgreSQL)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button 
-                onClick={runDiagnostic}
-                className="p-1.5 hover:bg-slate-200 rounded text-slate-500 transition-colors flex items-center gap-1 text-xs font-semibold"
-                title="Actualiser le test"
-              >
-                <RefreshCw className={cn("w-3.5 h-3.5", testStatus === 'testing' && "animate-spin")} />
-                Tester
-              </button>
-              <button 
-                onClick={() => setShowDiagnostics(!showDiagnostics)}
-                className="text-xs text-indigo-600 hover:text-indigo-700 font-bold px-2 py-1"
-              >
-                {showDiagnostics ? 'Masquer' : 'Afficher'}
-              </button>
-            </div>
-          </div>
-
-          {showDiagnostics && (
-            <div className="p-4 md:p-6 space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-4 rounded-xl border border-dashed border-slate-200 bg-white">
-                <div className="flex items-start gap-3">
-                  {testStatus === 'testing' && (
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg animate-pulse">
-                      <RefreshCw className="w-5 h-5 animate-spin" />
-                    </div>
-                  )}
-                  {testStatus === 'success' && (
-                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
-                  )}
-                  {testStatus === 'failed' && (
-                    <div className="p-2 bg-rose-50 text-rose-600 rounded-lg animate-bounce">
-                      <AlertTriangle className="w-5 h-5" />
-                    </div>
-                  )}
-                  {testStatus === 'idle' && (
-                    <div className="p-2 bg-slate-100 text-slate-400 rounded-lg">
-                      <HelpCircle className="w-5 h-5" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-bold text-slate-900">
-                      Statut: {testStatus === 'testing' && 'Vérification en cours...'}
-                      {testStatus === 'success' && 'Connecté au cloud avec succès !'}
-                      {testStatus === 'failed' && 'Erreur de connexion détectée !'}
-                      {testStatus === 'idle' && 'En attente de vérification...'}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {testStatus === 'success' && `Toutes les transactions et inventaires sont synchronisés instantanément en temps réel.`}
-                      {testStatus === 'failed' && 'La base de données Postgres/Supabase rejette la connexion ou les tables sont manquantes.'}
-                      {testStatus === 'testing' && 'Requête envoyée au serveur backend cloud...'}
-                    </p>
-                  </div>
-                </div>
-                {testStatus === 'failed' && (
-                  <div className="text-xs text-rose-700 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100 font-medium">
-                    ⚠️ Les ventes basculeront sur la mémoire temporaire en cas de coupure.
-                  </div>
-                )}
-              </div>
-
-              {testResult && (
-                <div className="bg-slate-900 text-slate-300 rounded-xl p-4 font-mono text-xs overflow-x-auto border border-slate-800">
-                  <div className="flex items-center justify-between border-b border-slate-800 pb-2 mb-2 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                    <span>Journaux système & logs d'erreurs d'intégration</span>
-                    <span className={cn(testStatus === 'success' ? "text-emerald-400" : "text-rose-400")}>
-                      {testStatus === 'success' ? "OK" : "KO"}
-                    </span>
-                  </div>
-                  {testStatus === 'success' ? (
-                    <div className="space-y-1">
-                      <p><span className="text-emerald-400">⚡ [SUCCESS]</span> PostgreSQL est opérationnel.</p>
-                      <p><span className="text-slate-500">Date de la BD :</span> {testResult.databaseTime}</p>
-                      <p><span className="text-slate-500">URL :</span> {testResult.connectionUrl}</p>
-                      <p><span className="text-slate-500">Tables détectées :</span> {testResult.tablesDetected?.join(', ') || 'Aucune'}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-rose-400 font-bold">❌ [ERROR] Connexion à la base de données échouée</p>
-                      <p className="text-rose-300"><span className="text-slate-500">Message :</span> {testResult.error}</p>
-                      {testResult.host && (
-                        <p><span className="text-slate-500">Hôte cible :</span> {testResult.host}:{testResult.port} (Code : {testResult.code || 'N/A'})</p>
-                      )}
-                      <p className="text-slate-500 border-t border-slate-800 pt-2 mt-2">Pile d'exécution technique :</p>
-                      <pre className="text-[10px] text-slate-400 max-h-40 overflow-y-auto whitespace-pre-wrap leading-relaxed">
-                        {testResult.details}
-                      </pre>
-                      <div className="border-t border-slate-800 pt-2 mt-2 text-amber-300 text-[11px] font-sans">
-                        💡 <span className="font-bold">Solution :</span> Vérifiez que votre <span className="font-mono">DATABASE_URL</span> dans Vercel ou votre fichier <span className="font-mono">.env</span> contient le mot de passe correct, ou que les règles de pare-feu de votre projet Supabase acceptent les connexions externes de toutes les adresses IP (0.0.0.0/0).
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
         {/* Search Bar */}
         <div className="relative max-w-md">
           <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
