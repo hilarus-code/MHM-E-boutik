@@ -350,8 +350,25 @@ app.use(express.json());
   app.get("/api/db/products", async (req, res) => {
     try {
       serverLogger.info("API_PRODUCTS", "Fetching all products");
-      const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
-      serverLogger.info("API_PRODUCTS", `Successfully fetched ${result.rows.length} products`);
+      let client;
+      try {
+        client = await pool.connect();
+      } catch (err: any) {
+        serverLogger.error("API_PRODUCTS", "Failed to connect to pool", err);
+        return res.status(500).json({ error: "Failed to connect to database: " + err.message, stack: err.stack });
+      }
+
+      let result;
+      try {
+        result = await client.query('SELECT * FROM products ORDER BY name ASC');
+        serverLogger.info("API_PRODUCTS", `Successfully fetched ${result.rows.length} products`);
+      } catch (err: any) {
+        serverLogger.error("API_PRODUCTS", "Failed to execute query", err);
+        return res.status(500).json({ error: "Failed to execute query: " + err.message, stack: err.stack });
+      } finally {
+        client.release();
+      }
+
       const products = result.rows.map(p => ({
         id: p.id,
         name: p.name,
@@ -365,10 +382,10 @@ app.use(express.json());
         costPrice: Number(p.cost_price),
         format: p.format
       }));
-      res.json(products);
+      return res.json(products);
     } catch (err: any) {
       serverLogger.error("API_PRODUCTS", "GET products error", err);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: "Unexpected GET error: " + err.message, stack: err.stack });
     }
   });
 
@@ -377,30 +394,51 @@ app.use(express.json());
     try {
       const p = req.body;
       const productId = p.id || crypto.randomUUID();
-      serverLogger.info("API_PRODUCTS", `Attempting to save product: ${p.name}`, p);
-      await pool.query(`
-        INSERT INTO products (id, name, category, retail_price, wholesale_price, wholesale_threshold, units_per_wholesale, min_stock_level, stock, cost_price, format)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-        ON CONFLICT (id) DO UPDATE SET
-          name = EXCLUDED.name,
-          category = EXCLUDED.category,
-          retail_price = EXCLUDED.retail_price,
-          wholesale_price = EXCLUDED.wholesale_price,
-          wholesale_threshold = EXCLUDED.wholesale_threshold,
-          units_per_wholesale = EXCLUDED.units_per_wholesale,
-          min_stock_level = EXCLUDED.min_stock_level,
-          stock = EXCLUDED.stock,
-          cost_price = EXCLUDED.cost_price,
-          format = EXCLUDED.format
-      `, [
-        productId, p.name, p.category, p.retailPrice, p.wholesalePrice, p.wholesaleThreshold,
-        p.unitsPerWholesale, p.minStockLevel, p.stock, p.costPrice, p.format
-      ]);
+      serverLogger.info("API_PRODUCTS", `Attempting to save product: ${p.name || 'Unknown'}`, p);
+      
+      serverLogger.info("API_PRODUCTS", "Connecting to database pool...");
+      let client;
+      try {
+        client = await pool.connect();
+      } catch (err: any) {
+        serverLogger.error("API_PRODUCTS", "Failed to connect to pool", err);
+        return res.status(500).json({ error: "Failed to connect to database: " + err.message, stack: err.stack });
+      }
+
+      try {
+        serverLogger.info("API_PRODUCTS", "Executing insert/update query...", { productId });
+        await client.query(`
+          INSERT INTO products (id, name, category, retail_price, wholesale_price, wholesale_threshold, units_per_wholesale, min_stock_level, stock, cost_price, format)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          ON CONFLICT (id) DO UPDATE SET
+            name = EXCLUDED.name,
+            category = EXCLUDED.category,
+            retail_price = EXCLUDED.retail_price,
+            wholesale_price = EXCLUDED.wholesale_price,
+            wholesale_threshold = EXCLUDED.wholesale_threshold,
+            units_per_wholesale = EXCLUDED.units_per_wholesale,
+            min_stock_level = EXCLUDED.min_stock_level,
+            stock = EXCLUDED.stock,
+            cost_price = EXCLUDED.cost_price,
+            format = EXCLUDED.format
+        `, [
+          productId, p.name, p.category, p.retailPrice, p.wholesalePrice, p.wholesaleThreshold,
+          p.unitsPerWholesale, p.minStockLevel, p.stock, p.costPrice, p.format
+        ]);
+        serverLogger.info("API_PRODUCTS", `Successfully executed query for product: ${productId}`);
+      } catch (err: any) {
+        serverLogger.error("API_PRODUCTS", "Failed to execute query", err);
+        return res.status(500).json({ error: "Failed to execute query: " + err.message, stack: err.stack });
+      } finally {
+        client.release();
+        serverLogger.info("API_PRODUCTS", "Database client released.");
+      }
+      
       serverLogger.info("API_PRODUCTS", `Successfully saved product: ${productId}`);
-      res.json({ success: true, id: productId });
+      return res.json({ success: true, id: productId });
     } catch (err: any) {
       serverLogger.error("API_PRODUCTS", "POST products error", err);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: "Unexpected POST error: " + err.message, stack: err.stack });
     }
   });
 
@@ -421,13 +459,30 @@ app.use(express.json());
   // Get Active Session
   app.get("/api/db/sessions/active", async (req, res) => {
     try {
-      const sessionRes = await pool.query("SELECT * FROM sessions WHERE status = 'OPEN' LIMIT 1");
-      if (sessionRes.rows.length === 0) {
-        return res.json(null);
+      let client;
+      try {
+        client = await pool.connect();
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to connect to database: " + err.message, stack: err.stack });
       }
+
+      let sessionRes;
+      let expensesRes;
+      try {
+        sessionRes = await client.query("SELECT * FROM sessions WHERE status = 'OPEN' LIMIT 1");
+        if (sessionRes.rows.length === 0) {
+          return res.json(null);
+        }
+        const s = sessionRes.rows[0];
+        expensesRes = await client.query("SELECT * FROM expenses WHERE session_id = $1 ORDER BY timestamp ASC", [s.id]);
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to execute query: " + err.message, stack: err.stack });
+      } finally {
+        client.release();
+      }
+      
       const s = sessionRes.rows[0];
-      const expensesRes = await pool.query("SELECT * FROM expenses WHERE session_id = $1 ORDER BY timestamp ASC", [s.id]);
-      res.json({
+      return res.json({
         id: s.id,
         startTime: new Date(s.start_time).getTime(),
         endTime: s.end_time ? new Date(s.end_time).getTime() : null,
@@ -444,23 +499,38 @@ app.use(express.json());
       });
     } catch (err: any) {
       console.error("GET active session error:", err);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: "Unexpected error: " + err.message, stack: err.stack });
     }
   });
 
   // Get All Sessions
   app.get("/api/db/sessions", async (req, res) => {
     try {
-      const result = await pool.query(`
-        SELECT s.*, 
-               COALESCE(
-                 (SELECT json_agg(e.* ORDER BY e.timestamp ASC) FROM expenses e WHERE e.session_id = s.id), 
-                 '[]'::json
-               ) as expenses
-        FROM sessions s
-        ORDER BY s.start_time DESC
-      `);
-      res.json(result.rows.map(s => ({
+      let client;
+      try {
+        client = await pool.connect();
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to connect to database: " + err.message, stack: err.stack });
+      }
+
+      let result;
+      try {
+        result = await client.query(`
+          SELECT s.*, 
+                 COALESCE(
+                   (SELECT json_agg(e.* ORDER BY e.timestamp ASC) FROM expenses e WHERE e.session_id = s.id), 
+                   '[]'::json
+                 ) as expenses
+          FROM sessions s
+          ORDER BY s.start_time DESC
+        `);
+      } catch (err: any) {
+        return res.status(500).json({ error: "Failed to execute query: " + err.message, stack: err.stack });
+      } finally {
+        client.release();
+      }
+
+      return res.json(result.rows.map(s => ({
         id: s.id,
         startTime: new Date(s.start_time).getTime(),
         endTime: s.end_time ? new Date(s.end_time).getTime() : null,
@@ -477,7 +547,7 @@ app.use(express.json());
       })));
     } catch (err: any) {
       console.error("GET sessions error:", err);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: "Unexpected error: " + err.message, stack: err.stack });
     }
   });
 
