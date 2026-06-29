@@ -5,6 +5,7 @@ import { useApp } from '../context/AppContext';
 import { Product } from '../types';
 import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { db } from '../lib/db';
+import { logger } from '../lib/logger';
 
 export default function PosView() {
   const { products, activeSession, cart, addToCart, updateCartItem, removeFromCart, clearCart, cartTotal, refreshProducts } = useApp();
@@ -423,18 +424,22 @@ function CheckoutModal({ onClose, onSuccess }: { onClose: () => void, onSuccess:
         change: change
       };
 
+      logger.info('PosView', `Attempting to complete transaction with total: ${cartTotal}`);
       await db.saveTransaction(transaction);
+      logger.info('PosView', `Successfully completed transaction: ${transaction.id}`);
       
       if (autoPrint) {
         try {
           printReceipt(transaction);
         } catch (printErr) {
+          logger.error('PosView', "Erreur d'impression du ticket:", printErr);
           console.error("Erreur d'impression du ticket:", printErr);
         }
       }
       
       onSuccess();
-    } catch (e) {
+    } catch (e: any) {
+      logger.error('PosView', 'Failed to complete transaction', e);
       console.error(e);
       alert("Erreur lors de l'enregistrement de la vente.");
       setIsProcessing(false);

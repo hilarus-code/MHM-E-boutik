@@ -4,6 +4,7 @@ import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { db } from '../lib/db';
 import { Credit } from '../types';
 import { format } from 'date-fns';
+import { logger } from '../lib/logger';
 import { fr } from 'date-fns/locale';
 
 export default function CreditsView() {
@@ -15,8 +16,12 @@ export default function CreditsView() {
   const [paidAmount, setPaidAmount] = useState('');
 
   const loadCredits = async () => {
-    const data = await db.getCredits();
-    setCredits(data);
+    try {
+      const data = await db.getCredits();
+      setCredits(data);
+    } catch (err) {
+      logger.error('CreditsView', 'Failed to load credits', err);
+    }
   };
 
   useEffect(() => {
@@ -39,12 +44,19 @@ export default function CreditsView() {
       status: (total - paid) <= 0 ? 'PAID' : 'PENDING'
     };
 
-    await db.saveCredit(credit);
-    setIsAdding(false);
-    setClientName('');
-    setTotalAmount('');
-    setPaidAmount('');
-    loadCredits();
+    try {
+      logger.info('CreditsView', `Attempting to add credit for ${clientName}`, credit);
+      await db.saveCredit(credit);
+      logger.info('CreditsView', `Successfully added credit for ${clientName}`);
+      setIsAdding(false);
+      setClientName('');
+      setTotalAmount('');
+      setPaidAmount('');
+      loadCredits();
+    } catch (err) {
+      logger.error('CreditsView', 'Failed to add credit', err);
+      alert("Erreur lors de l'ajout du crédit.");
+    }
   };
 
   const handlePayment = async (id: string) => {
@@ -53,8 +65,15 @@ export default function CreditsView() {
     
     const parsedAmount = parseFloat(amount);
     if (!isNaN(parsedAmount) && parsedAmount > 0) {
-      await db.updateCreditPayment(id, parsedAmount);
-      loadCredits();
+      try {
+        logger.info('CreditsView', `Attempting to add payment of ${parsedAmount} to credit ${id}`);
+        await db.updateCreditPayment(id, parsedAmount);
+        logger.info('CreditsView', `Successfully updated credit payment for ${id}`);
+        loadCredits();
+      } catch (err) {
+        logger.error('CreditsView', 'Failed to update credit payment', err);
+        alert("Erreur lors du paiement du crédit.");
+      }
     }
   };
 

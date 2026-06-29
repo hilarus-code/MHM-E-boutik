@@ -18,6 +18,20 @@ const pool = new Pool({
   connectionTimeoutMillis: 5000,
 });
 
+const isDev = process.env.NODE_ENV !== "production";
+const serverLogger = {
+  info: (module: string, message: string, data?: any) => {
+    if (isDev) {
+      if (data !== undefined) console.log(`[${module}] ✅ ${message}`, data);
+      else console.log(`[${module}] ✅ ${message}`);
+    }
+  },
+  error: (module: string, message: string, err?: any) => {
+    if (err !== undefined) console.error(`[${module}] ❌ ERROR: ${message}`, err);
+    else console.error(`[${module}] ❌ ERROR: ${message}`);
+  }
+};
+
 const app = express();
 app.use(express.json());
 
@@ -332,7 +346,9 @@ app.use(express.json());
   // Get products
   app.get("/api/db/products", async (req, res) => {
     try {
+      serverLogger.info("API_PRODUCTS", "Fetching all products");
       const result = await pool.query('SELECT * FROM products ORDER BY name ASC');
+      serverLogger.info("API_PRODUCTS", `Successfully fetched ${result.rows.length} products`);
       const products = result.rows.map(p => ({
         id: p.id,
         name: p.name,
@@ -348,7 +364,7 @@ app.use(express.json());
       }));
       res.json(products);
     } catch (err: any) {
-      console.error("GET products error:", err);
+      serverLogger.error("API_PRODUCTS", "GET products error", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -358,6 +374,7 @@ app.use(express.json());
     try {
       const p = req.body;
       const productId = p.id || uuidv4();
+      serverLogger.info("API_PRODUCTS", `Attempting to save product: ${p.name}`, p);
       await pool.query(`
         INSERT INTO products (id, name, category, retail_price, wholesale_price, wholesale_threshold, units_per_wholesale, min_stock_level, stock, cost_price, format)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
@@ -376,9 +393,10 @@ app.use(express.json());
         productId, p.name, p.category, p.retailPrice, p.wholesalePrice, p.wholesaleThreshold,
         p.unitsPerWholesale, p.minStockLevel, p.stock, p.costPrice, p.format
       ]);
+      serverLogger.info("API_PRODUCTS", `Successfully saved product: ${productId}`);
       res.json({ success: true, id: productId });
     } catch (err: any) {
-      console.error("POST products error:", err);
+      serverLogger.error("API_PRODUCTS", "POST products error", err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -387,10 +405,12 @@ app.use(express.json());
   app.delete("/api/db/products/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      serverLogger.info("API_PRODUCTS", `Attempting to delete product: ${id}`);
       await pool.query('DELETE FROM products WHERE id = $1', [id]);
+      serverLogger.info("API_PRODUCTS", `Successfully deleted product: ${id}`);
       res.json({ success: true });
     } catch (err: any) {
-      console.error("DELETE product error:", err);
+      serverLogger.error("API_PRODUCTS", "DELETE product error", err);
       res.status(500).json({ error: err.message });
     }
   });

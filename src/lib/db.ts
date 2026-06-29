@@ -3,6 +3,7 @@ import localforage from 'localforage';
 import { Product, Transaction, Session, Credit } from '../types';
 import { initialProducts } from '../data/initial-products';
 import { supabaseDb } from './supabase-db';
+import { logger } from './logger';
 
 
 // Configure stores
@@ -16,7 +17,7 @@ const localDb = {
   async initProductsIfEmpty() {
     const keys = await productsStore.keys();
     if (keys.length === 0) {
-      console.log('Initializing database with default products...');
+      logger.info('DB', 'Initializing database with default products...');
       for (const product of initialProducts) {
         await productsStore.setItem(product.id, product);
       }
@@ -193,9 +194,16 @@ const apiDb = {
   },
 
   async getProducts(): Promise<Product[]> {
+    logger.info('DB', 'Fetching products from /api/db/products');
     const res = await fetch('/api/db/products');
-    if (!res.ok) throw new Error("Erreur de récupération des produits");
-    return res.json();
+    if (!res.ok) {
+       const errText = await res.text();
+       logger.error('DB', 'Failed to fetch products', errText);
+       throw new Error(`Erreur de récupération des produits: ${errText}`);
+    }
+    const data = await res.json();
+    logger.info('DB', `Fetched ${data.length} products`);
+    return data;
   },
 
   async getProduct(id: string): Promise<Product | null> {
@@ -204,6 +212,7 @@ const apiDb = {
   },
 
   async updateProduct(product: Product): Promise<void> {
+    logger.info('DB', `Sending request to POST /api/db/products for ${product.name}`);
     const res = await fetch('/api/db/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -211,15 +220,23 @@ const apiDb = {
     });
     if (!res.ok) {
       const errorText = await res.text();
+      logger.error('DB', `Failed to POST /api/db/products for ${product.name}`, errorText);
       throw new Error(`Erreur de mise à jour du produit: ${errorText}`);
     }
+    logger.info('DB', `Successfully posted product: ${product.name}`);
   },
 
   async deleteProduct(id: string): Promise<void> {
+    logger.info('DB', `Sending request to DELETE /api/db/products/${id}`);
     const res = await fetch(`/api/db/products/${id}`, {
       method: 'DELETE'
     });
-    if (!res.ok) throw new Error("Erreur de suppression du produit");
+    if (!res.ok) {
+       const errText = await res.text();
+       logger.error('DB', `Failed to delete product ${id}`, errText);
+       throw new Error(`Erreur de suppression du produit: ${errText}`);
+    }
+    logger.info('DB', `Successfully deleted product: ${id}`);
   },
 
   async updateProductStock(id: string, quantityChange: number): Promise<void> {

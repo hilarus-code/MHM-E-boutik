@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Product, Session, Transaction, CartItem } from '../types';
 import { db } from '../lib/db';
+import { logger } from '../lib/logger';
 
 interface AppContextType {
   products: Product[];
@@ -36,7 +37,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const p = await db.getProducts();
       setProducts(Array.isArray(p) ? p : []);
     } catch (err) {
-      console.error("Failed to fetch products from DB:", err);
+      logger.error('AppContext', 'Failed to fetch products from DB', err);
       setProducts([]);
     }
   };
@@ -46,7 +47,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const s = await db.getActiveSession();
       setActiveSession(s);
     } catch (err) {
-      console.error("Failed to fetch active session from DB:", err);
+      logger.error('AppContext', 'Failed to fetch active session from DB', err);
       setActiveSession(null);
     }
   };
@@ -56,19 +57,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await db.initProductsIfEmpty();
       } catch (err) {
-        console.error("Failed to initialize products on start:", err);
+        logger.error('AppContext', 'Failed to initialize products on start', err);
       }
       
       try {
         await refreshProducts();
       } catch (err) {
-        console.error("refreshProducts error:", err);
+        logger.error('AppContext', 'refreshProducts error', err);
       }
 
       try {
         await refreshSession();
       } catch (err) {
-        console.error("refreshSession error:", err);
+        logger.error('AppContext', 'refreshSession error', err);
       }
       
       setLoading(false);

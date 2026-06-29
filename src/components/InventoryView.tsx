@@ -6,6 +6,7 @@ import { useApp } from '../context/AppContext';
 import { cn, formatCurrency, generateUUID } from '../lib/utils';
 import { Product, Category } from '../types';
 import { db } from '../lib/db';
+import { logger } from '../lib/logger';
 
 const CATEGORIES: Category[] = [
   'Bières et Boissons Alcoolisées',
@@ -102,10 +103,13 @@ export default function InventoryView() {
     };
 
     try {
+      logger.info('InventoryView', `Attempting to ${modalMode === 'add' ? 'create' : 'update'} product: ${productData.name}`, productData);
       await db.updateProduct(productData);
+      logger.info('InventoryView', `Successfully saved product: ${productData.name}`);
       await refreshProducts();
       setIsModalOpen(false);
     } catch (err: any) {
+      logger.error('InventoryView', `Failed to save product ${productData.name}`, err);
       alert("Erreur lors de l'enregistrement de produit : " + err.message);
     }
   };
@@ -113,9 +117,12 @@ export default function InventoryView() {
   const handleDeleteProduct = async (product: Product) => {
     if (confirm(`⚠️ Êtes-vous sûr de vouloir supprimer définitivement le produit "${product.name}" de votre base de données centrale cloud ?`)) {
       try {
+        logger.info('InventoryView', `Attempting to delete product: ${product.name}`);
         await db.deleteProduct(product.id);
+        logger.info('InventoryView', `Successfully deleted product: ${product.name}`);
         await refreshProducts();
       } catch (err: any) {
+        logger.error('InventoryView', `Failed to delete product ${product.name}`, err);
         alert("Erreur lors de la suppression : " + err.message);
       }
     }
