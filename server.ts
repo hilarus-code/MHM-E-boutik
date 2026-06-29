@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import { GoogleGenAI, Type } from "@google/genai";
 import { Pool } from "pg";
-import { v4 as uuidv4 } from "uuid";
+import crypto from "crypto";
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -16,6 +16,9 @@ const pool = new Pool({
   ssl: dbConnectionString ? { rejectUnauthorized: false } : undefined,
   max: process.env.VERCEL ? 2 : 10,
   connectionTimeoutMillis: 5000,
+});
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -373,7 +376,7 @@ app.use(express.json());
   app.post("/api/db/products", async (req, res) => {
     try {
       const p = req.body;
-      const productId = p.id || uuidv4();
+      const productId = p.id || crypto.randomUUID();
       serverLogger.info("API_PRODUCTS", `Attempting to save product: ${p.name}`, p);
       await pool.query(`
         INSERT INTO products (id, name, category, retail_price, wholesale_price, wholesale_threshold, units_per_wholesale, min_stock_level, stock, cost_price, format)
@@ -511,7 +514,7 @@ app.use(express.json());
   app.post("/api/db/sessions/open", async (req, res) => {
     try {
       const { initialCash, id } = req.body;
-      const sessionId = id || uuidv4();
+      const sessionId = id || crypto.randomUUID();
       const result = await pool.query(`
         INSERT INTO sessions (id, start_time, initial_cash, status)
         VALUES ($1, NOW(), $2, 'OPEN')
@@ -583,7 +586,7 @@ app.use(express.json());
   app.post("/api/db/sessions/expenses", async (req, res) => {
     try {
       const { sessionId, description, amount, id } = req.body;
-      const expenseId = id || uuidv4();
+      const expenseId = id || crypto.randomUUID();
       await pool.query(`
         INSERT INTO expenses (id, session_id, description, amount, timestamp)
         VALUES ($1, $2, $3, $4, NOW())
@@ -601,7 +604,7 @@ app.use(express.json());
     try {
       await client.query('BEGIN');
       const tx = req.body;
-      const txId = tx.id || uuidv4();
+      const txId = tx.id || crypto.randomUUID();
       await client.query(`
         INSERT INTO transactions (id, session_id, timestamp, total_amount, total_profit, amount_tendered, "change", payment_method)
         VALUES ($1, $2, $3, $4, $5, $6, $7, 'CASH')
@@ -609,7 +612,7 @@ app.use(express.json());
         txId, tx.sessionId, new Date(tx.timestamp).toISOString(), tx.totalAmount, tx.totalProfit, tx.amountTendered, tx.change
       ]);
       for (const item of tx.items) {
-        const itemId = uuidv4();
+        const itemId = crypto.randomUUID();
         await client.query(`
           INSERT INTO transaction_items (id, transaction_id, product_id, name, quantity, unit_price, total_price, cost_price, is_wholesale, units_per_wholesale)
           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -671,7 +674,7 @@ app.use(express.json());
   app.post("/api/db/credits", async (req, res) => {
     try {
       const c = req.body;
-      const creditId = c.id || uuidv4();
+      const creditId = c.id || crypto.randomUUID();
       await pool.query(`
         INSERT INTO credits (id, client_name, total_amount, paid_amount, remaining_amount, timestamp, due_date, status)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -743,7 +746,7 @@ app.use(express.json());
   // Vite middleware for development
   async function init() {
     // Run schema migrations if database is configured
-    if (dbConnectionString) {
+    if (dbConnectionString && !process.env.VERCEL) {
       try {
         console.log("[Migration] Checking database schema...");
         const fs = await import("fs");

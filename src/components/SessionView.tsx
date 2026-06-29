@@ -3,6 +3,7 @@ import { Clock, Play, Square, DollarSign, ListOrdered, Receipt } from 'lucide-re
 import { useApp } from '../context/AppContext';
 import { formatCurrency, cn } from '../lib/utils';
 import { db } from '../lib/db';
+import { logger } from '../lib/logger';
 import { Session, Transaction, Expense } from '../types';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -44,7 +45,9 @@ export default function SessionView() {
     if (activeSession) return;
     try {
       const cash = parseFloat(initialCash) || 0;
+      logger.info('SessionView', 'Attempting to open session', { cash });
       const session = await db.openSession(cash);
+      logger.info('SessionView', 'Successfully opened session', session);
       await refreshSession();
       setInitialCash('');
       setIsOpening(false);
@@ -63,8 +66,9 @@ export default function SessionView() {
         })
       }).catch(err => console.error("Notification erreur", err));
 
-    } catch (e) {
-      alert("Erreur");
+    } catch (e: any) {
+      logger.error('SessionView', 'Operation failed', e);
+      alert('Erreur: ' + e.message);
     }
   };
 
@@ -95,8 +99,9 @@ export default function SessionView() {
         })
       }).catch(err => console.error("Notification erreur", err));
 
-    } catch (e) {
-      alert("Erreur");
+    } catch (e: any) {
+      logger.error('SessionView', 'Operation failed', e);
+      alert('Erreur: ' + e.message);
     }
   };
 
